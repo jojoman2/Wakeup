@@ -25,7 +25,6 @@ public class SetupTime extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_setup_time);
 
         datePicker = (DatePicker)findViewById(R.id.datePicker);
         timePicker = (TimePicker) findViewById(R.id.timePicker);

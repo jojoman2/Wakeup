@@ -4,10 +4,12 @@ public class MorningTask {
 
     private String name;
     private int secondsToDoIt;
+    private boolean soundAlarm;
 
-    public MorningTask(String name, int secondsToDoIt) {
+    public MorningTask(String name, int secondsToDoIt, boolean soundAlarm) {
         this.name = name;
         this.secondsToDoIt = secondsToDoIt;
+        this.soundAlarm = soundAlarm;
     }
 
     public String getName() {
@@ -17,4 +19,6 @@ public class MorningTask {
     public int getSecondsToDoIt() {
         return secondsToDoIt;
     }
+
+    public boolean getSoundAlarm(){return soundAlarm;}
 }

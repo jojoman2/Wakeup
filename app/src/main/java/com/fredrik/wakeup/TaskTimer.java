@@ -1,5 +1,6 @@
 package com.fredrik.wakeup;
 
+import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Color;
 import android.media.AudioManager;
@@ -13,17 +14,19 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.FileDescriptor;
 import java.io.IOException;
 
 public class TaskTimer extends AppCompatActivity {
 
     private MediaPlayer mediaPlayer;
     private CountDownTimer taskCountdown;
-    private Button bottomButton;
+    private TextView taskTitle;
     private TextView countDownMarker;
 
     private MorningTask[] morningTasks;
+    private int[] results;
+
+    private int secondsLeft;
 
     private int currentTask = 0;
     private boolean alarmRinging;
@@ -31,19 +34,34 @@ public class TaskTimer extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_task_timer);
 
         morningTasks = DefaultTasks.getDefaultTasks();
+        results = new int[morningTasks.length];
 
-        bottomButton = (Button)findViewById(R.id.bottomButton);
+        Button bottomButton = (Button) findViewById(R.id.bottomButton);
         countDownMarker = (TextView)findViewById(R.id.countDownMarker);
+        taskTitle = (TextView)findViewById(R.id.taskTitle);
 
+
+        bottomButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                buttonPressed();
+            }
+        });
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setLooping(true);
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+
+        startNewCountDown(currentTask);
+    }
+
+    private void startMediaPlayer(){
         AssetFileDescriptor afd = null;
         try {
             afd = this.getResources().openRawResourceFd(R.raw.lg_good_morning);
-            mediaPlayer.setDataSource(afd.getFileDescriptor());
+            mediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
             mediaPlayer.prepare();
         }
         catch (IOException e) {
@@ -66,27 +84,15 @@ public class TaskTimer extends AppCompatActivity {
 
         mediaPlayer.start();
         alarmRinging = true;
-
-        bottomButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                buttonPressed();
-            }
-        });
     }
 
     private void buttonPressed(){
-        if(alarmRinging){
-            mediaPlayer.stop();
-            mediaPlayer.release();
-            mediaPlayer = null;
-            alarmRinging = false;
-
-            startNewCountDown(0);
-        }
-
-        if(currentTask >= morningTasks.length){
-            Toast.makeText(this,"Done",Toast.LENGTH_SHORT).show();
+        results[currentTask] = secondsLeft;
+        if(currentTask+1 >= morningTasks.length){
+            Intent intent = new Intent(getBaseContext(), Results.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            intent.putExtra(Results.RESULT_KEY, results);
+            startActivity(intent);
         }
         else{
             currentTask++;
@@ -107,19 +113,34 @@ public class TaskTimer extends AppCompatActivity {
     private void startNewCountDown(int number){
         MorningTask thisMorningTask = morningTasks[number];
 
+        final boolean soundAlarm = thisMorningTask.getSoundAlarm();
+        if(soundAlarm && (!mediaPlayer.isPlaying())){
+            startMediaPlayer();
+        }
+        else if((!soundAlarm) && mediaPlayer.isPlaying()){
+            mediaPlayer.stop();
+        }
+        final String taskTitleStr = thisMorningTask.getName();
+        taskTitle.setText(taskTitleStr);
+
         final int secondsToDoIt = thisMorningTask.getSecondsToDoIt();
 
         final long timerRunningTime = Long.MAX_VALUE;
+        if(taskCountdown != null){
+            taskCountdown.cancel();
+        }
+
+        secondsLeft = secondsToDoIt;
         taskCountdown = new CountDownTimer(timerRunningTime,1000) {
             @Override
             public void onTick(long millisUntilFinished) {
                 long millisPassed = timerRunningTime-millisUntilFinished;
-                int secondsLeft = secondsToDoIt - Math.round(millisPassed/1000);
+                secondsLeft = secondsToDoIt - Math.round(millisPassed/1000);
                 boolean positive = secondsLeft >= 0;
-                secondsLeft = Math.abs(secondsLeft);
+                int secondsLeftAbs = Math.abs(secondsLeft);
 
-                int minutesLeft = (int)Math.floor(secondsLeft/60); //-1
-                int additionalSecLeft = secondsLeft-minutesLeft*60;
+                int minutesLeft = (int)Math.floor(secondsLeftAbs/60); //-1
+                int additionalSecLeft = secondsLeftAbs-minutesLeft*60;
 
                 String minutesLeftStr = numberToString(minutesLeft);
                 String additionalSecLeftStr = numberToString(additionalSecLeft);
@@ -147,6 +168,10 @@ public class TaskTimer extends AppCompatActivity {
             mediaPlayer.stop();
             mediaPlayer.release();
         }
+        if(taskCountdown != null) {
+            taskCountdown.cancel();
+        }
         super.onStop();
+        finish();
     }
 }
