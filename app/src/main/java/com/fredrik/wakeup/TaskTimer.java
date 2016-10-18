@@ -10,6 +10,7 @@ import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,10 +32,14 @@ public class TaskTimer extends AppCompatActivity {
     private int currentTask = 0;
     private boolean alarmRinging;
 
+    private boolean focusDuringOnPause;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_task_timer);
+
 
         morningTasks = DefaultTasks.getDefaultTasks();
         results = new int[morningTasks.length];
@@ -53,7 +58,7 @@ public class TaskTimer extends AppCompatActivity {
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setLooping(true);
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-
+        currentTask = 0;
         startNewCountDown(currentTask);
     }
 
@@ -125,11 +130,11 @@ public class TaskTimer extends AppCompatActivity {
 
         final int secondsToDoIt = thisMorningTask.getSecondsToDoIt();
 
-        final long timerRunningTime = Long.MAX_VALUE;
+
         if(taskCountdown != null){
             taskCountdown.cancel();
         }
-
+        final long timerRunningTime = Long.MAX_VALUE;
         secondsLeft = secondsToDoIt;
         taskCountdown = new CountDownTimer(timerRunningTime,1000) {
             @Override
@@ -163,15 +168,29 @@ public class TaskTimer extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+
+        focusDuringOnPause = hasWindowFocus();
+    }
+
+    @Override
     protected void onStop() {
-        if(mediaPlayer != null) {
-            mediaPlayer.stop();
-            mediaPlayer.release();
-        }
-        if(taskCountdown != null) {
-            taskCountdown.cancel();
+        if(focusDuringOnPause) {
+            if (AlarmBroadcastReceiver.wakeLock != null) {
+                AlarmBroadcastReceiver.wakeLock.release();
+                AlarmBroadcastReceiver.wakeLock = null;
+            }
+            if (mediaPlayer != null) {
+                mediaPlayer.stop();
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
+            if (taskCountdown != null) {
+                taskCountdown.cancel();
+            }
+            finish();
         }
         super.onStop();
-        finish();
     }
 }

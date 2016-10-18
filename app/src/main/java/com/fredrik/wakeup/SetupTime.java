@@ -25,6 +25,7 @@ public class SetupTime extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_setup_time);
 
         datePicker = (DatePicker)findViewById(R.id.datePicker);
         timePicker = (TimePicker) findViewById(R.id.timePicker);
@@ -60,8 +61,10 @@ public class SetupTime extends AppCompatActivity {
                 calendar.set(Calendar.SECOND,0);
                 long militime = calendar.getTimeInMillis();
 
-                PendingIntent pi = PendingIntent.getService(SetupTime.this, 0,
-                        new Intent(SetupTime.this, ScheduledAlarm.class),PendingIntent.FLAG_UPDATE_CURRENT);
+                Intent intent = new Intent(SetupTime.this, AlarmBroadcastReceiver.class);
+                PendingIntent pi = PendingIntent.getBroadcast(SetupTime.this,0,intent,0);
+                /*PendingIntent pi = PendingIntent.getService(SetupTime.this, 0,
+                        new Intent(SetupTime.this, ScheduledAlarm.class),PendingIntent.FLAG_UPDATE_CURRENT);*/
 
                 AlarmManager alarmManager = (AlarmManager)SetupTime.this.getSystemService(Context.ALARM_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -77,5 +80,11 @@ public class SetupTime extends AppCompatActivity {
                 Toast.makeText(SetupTime.this,"Scheduled!",Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        finish();
     }
 }
