@@ -13,7 +13,6 @@ public class AlarmBroadcastReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d("Wakeup","hej AlarmBroadcastReceiver - onReceive");
         if(wakeLock == null) {
             PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,

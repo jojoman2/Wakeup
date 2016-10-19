@@ -186,11 +186,16 @@ public class TaskTimer extends AppCompatActivity {
                 mediaPlayer.release();
                 mediaPlayer = null;
             }
-            if (taskCountdown != null) {
-                taskCountdown.cancel();
-            }
-            finish();
+
         }
         super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (taskCountdown != null) {
+            taskCountdown.cancel();
+        }
+        super.onDestroy();
     }
 }
