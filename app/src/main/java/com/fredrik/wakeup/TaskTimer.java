@@ -55,11 +55,18 @@ public class TaskTimer extends AppCompatActivity {
                 buttonPressed();
             }
         });
+
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setLooping(true);
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
         currentTask = 0;
         startNewCountDown(currentTask);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
     }
 
     private void startMediaPlayer(){
@@ -103,6 +110,11 @@ public class TaskTimer extends AppCompatActivity {
             currentTask++;
             startNewCountDown(currentTask);
         }
+
+        if (AlarmBroadcastReceiver.wakeLock != null) {
+            AlarmBroadcastReceiver.wakeLock.release();
+            AlarmBroadcastReceiver.wakeLock = null;
+        }
     }
 
     private static String numberToString(int number){
@@ -119,11 +131,13 @@ public class TaskTimer extends AppCompatActivity {
         MorningTask thisMorningTask = morningTasks[number];
 
         final boolean soundAlarm = thisMorningTask.getSoundAlarm();
-        if(soundAlarm && (!mediaPlayer.isPlaying())){
-            startMediaPlayer();
-        }
-        else if((!soundAlarm) && mediaPlayer.isPlaying()){
-            mediaPlayer.stop();
+        if(mediaPlayer != null) {
+            if (soundAlarm && (!mediaPlayer.isPlaying())) {
+                startMediaPlayer();
+            }
+            else if ((!soundAlarm) && mediaPlayer.isPlaying()) {
+                mediaPlayer.stop();
+            }
         }
         final String taskTitleStr = thisMorningTask.getName();
         taskTitle.setText(taskTitleStr);

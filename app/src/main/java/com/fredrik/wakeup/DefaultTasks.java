@@ -10,7 +10,7 @@ public class DefaultTasks {
             new MorningTask("Get out of bed",2*60,true),
             new MorningTask("Eat breakfest",10*60,false),
             new MorningTask("Shower",10*60,false),
-            new MorningTask("Get dressed",6*60,false),
+            new MorningTask("Get dressed",8*60,false),
             new MorningTask("Pack stuff and leave apartement",5*60,false)
         };
     }
