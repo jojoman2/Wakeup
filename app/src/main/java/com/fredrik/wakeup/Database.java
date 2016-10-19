@@ -49,13 +49,17 @@ public class Database extends SQLiteOpenHelper {
 
     public void addAlarmTimestamp(long timestamp){
         SQLiteDatabase db = this.getWritableDatabase();
+        try {
+            ContentValues values = new ContentValues();
+            values.put(COLUMN_ALARM_TIMESTAMP, timestamp);
 
-        ContentValues values = new ContentValues();
-        values.put(COLUMN_ALARM_TIMESTAMP,timestamp);
+            db.insert(ALARMS_TABLE_NAME, null, values);
+        }
+        finally {
+            db.close();
+        }
 
-        db.insert(ALARMS_TABLE_NAME,null,values);
 
-        db.close();
     }
 
     public long[] getAlarmTimestamps(){
@@ -82,10 +86,14 @@ public class Database extends SQLiteOpenHelper {
 
     public void removeAlarmsOlderThan(long timeStamp){
         SQLiteDatabase db = getWritableDatabase();
+        try {
+            String timeStampStr = Long.toString(timeStamp);
+            db.delete(ALARMS_TABLE_NAME, COLUMN_ALARM_TIMESTAMP + "< ?", new String[]{timeStampStr});
+        }
+        finally {
+            db.close();
+        }
 
-        String timeStampStr = Long.toString(timeStamp);
-        db.delete(ALARMS_TABLE_NAME, COLUMN_ALARM_TIMESTAMP + "< ?",new String[]{timeStampStr});
 
-        db.close();
     }
 }
