@@ -13,36 +13,59 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.io.IOException;
 
 public class TaskTimer extends AppCompatActivity {
 
+    private static final String CURRENT_TASK_KEY = "currentTask";
+    private static final String TIME_WHEN_TASK_SHOULD_BE_DONE_KEY = "timeDone";
+    private static final String RESULTS_KEY = "results";
+
     private MediaPlayer mediaPlayer;
-    private CountDownTimer taskCountdown;
     private TextView taskTitle;
     private TextView countDownMarker;
 
     private MorningTask[] morningTasks;
+
+
+    private int currentTask;
+    private long timeWhenItShouldBeDone;
     private int[] results;
-
-    private int secondsLeft;
-
-    private int currentTask = 0;
-    private boolean alarmRinging;
 
     private boolean focusDuringOnPause;
 
+    private static final long timerRunningTime = Long.MAX_VALUE;
+    private CountDownTimer taskCountdown = new CountDownTimer(timerRunningTime, 1000) {
+        @Override
+        public void onTick(long millisUntilFinished) {
+            updateTimeLeft();
+        }
+
+        @Override
+        public void onFinish() {
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_task_timer);
 
-
         morningTasks = DefaultTasks.getDefaultTasks();
-        results = new int[morningTasks.length];
+
+        if(savedInstanceState == null){
+            currentTask = 0;
+            timeWhenItShouldBeDone = -1;
+            results = new int[morningTasks.length];
+        }
+        else{
+            currentTask = savedInstanceState.getInt(CURRENT_TASK_KEY);
+            timeWhenItShouldBeDone = savedInstanceState.getLong(TIME_WHEN_TASK_SHOULD_BE_DONE_KEY);
+            results = savedInstanceState.getIntArray(RESULTS_KEY);
+
+        }
 
         Button bottomButton = (Button) findViewById(R.id.bottomButton);
         countDownMarker = (TextView)findViewById(R.id.countDownMarker);
@@ -59,8 +82,7 @@ public class TaskTimer extends AppCompatActivity {
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setLooping(true);
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-        currentTask = 0;
-        startNewCountDown(currentTask);
+        setupCountdownForCurrentTask();
     }
 
     @Override
@@ -95,11 +117,16 @@ public class TaskTimer extends AppCompatActivity {
 
 
         mediaPlayer.start();
-        alarmRinging = true;
+    }
+
+    private int getTimeLeftInSec(){
+        return Math.round((timeWhenItShouldBeDone - System.currentTimeMillis())/1000);
     }
 
     private void buttonPressed(){
-        results[currentTask] = secondsLeft;
+        results[currentTask] = getTimeLeftInSec();
+        timeWhenItShouldBeDone = -1;
+
         if(currentTask+1 >= morningTasks.length){
             Intent intent = new Intent(getBaseContext(), Results.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -108,7 +135,7 @@ public class TaskTimer extends AppCompatActivity {
         }
         else{
             currentTask++;
-            startNewCountDown(currentTask);
+            setupCountdownForCurrentTask();
         }
 
         if (AlarmBroadcastReceiver.wakeLock != null) {
@@ -127,10 +154,34 @@ public class TaskTimer extends AppCompatActivity {
 
     }
 
-    private void startNewCountDown(int number){
-        MorningTask thisMorningTask = morningTasks[number];
+    private void updateTimeLeft(){
+        final int secondsLeft = getTimeLeftInSec();
+        boolean positive = secondsLeft >= 0;
+        int secondsLeftAbs = Math.abs(secondsLeft);
 
-        final boolean soundAlarm = thisMorningTask.getSoundAlarm();
+        int minutesLeft = (int) Math.floor(secondsLeftAbs / 60); //-1
+        int additionalSecLeft = secondsLeftAbs - minutesLeft * 60;
+
+        String minutesLeftStr = numberToString(minutesLeft);
+        String additionalSecLeftStr = numberToString(additionalSecLeft);
+
+        String textToShow = minutesLeftStr + ":" + additionalSecLeftStr;
+        if (positive) {
+            countDownMarker.setTextColor(Color.BLACK);
+        }
+        else {
+            textToShow = "-" + textToShow;
+            countDownMarker.setTextColor(Color.RED);
+        }
+
+        countDownMarker.setText(textToShow);
+    }
+
+    private void setupCountdownForCurrentTask(){
+        final MorningTask thisMorningTask = morningTasks[currentTask];
+
+
+        final boolean soundAlarm = thisMorningTask.useSoundAlarm();
         if(mediaPlayer != null) {
             if (soundAlarm && (!mediaPlayer.isPlaying())) {
                 startMediaPlayer();
@@ -142,43 +193,12 @@ public class TaskTimer extends AppCompatActivity {
         final String taskTitleStr = thisMorningTask.getName();
         taskTitle.setText(taskTitleStr);
 
-        final int secondsToDoIt = thisMorningTask.getSecondsToDoIt();
-
-
-        if(taskCountdown != null){
-            taskCountdown.cancel();
+        if(timeWhenItShouldBeDone == -1) {
+            timeWhenItShouldBeDone = System.currentTimeMillis() + thisMorningTask.getSecondsToDoIt() * 1000;
         }
-        final long timerRunningTime = Long.MAX_VALUE;
-        secondsLeft = secondsToDoIt;
-        taskCountdown = new CountDownTimer(timerRunningTime,1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                long millisPassed = timerRunningTime-millisUntilFinished;
-                secondsLeft = secondsToDoIt - Math.round(millisPassed/1000);
-                boolean positive = secondsLeft >= 0;
-                int secondsLeftAbs = Math.abs(secondsLeft);
 
-                int minutesLeft = (int)Math.floor(secondsLeftAbs/60); //-1
-                int additionalSecLeft = secondsLeftAbs-minutesLeft*60;
+        taskCountdown.start();
 
-                String minutesLeftStr = numberToString(minutesLeft);
-                String additionalSecLeftStr = numberToString(additionalSecLeft);
-
-                String textToShow = minutesLeftStr + ":" +additionalSecLeftStr;
-                if(positive){
-                    countDownMarker.setTextColor(Color.BLACK);
-                }
-                else{
-                    textToShow = "-" +textToShow;
-                    countDownMarker.setTextColor(Color.RED);
-                }
-
-                countDownMarker.setText(textToShow);
-            }
-
-            @Override
-            public void onFinish() { }
-        }.start();
     }
 
     @Override
@@ -186,6 +206,14 @@ public class TaskTimer extends AppCompatActivity {
         super.onPause();
 
         focusDuringOnPause = hasWindowFocus();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putInt(CURRENT_TASK_KEY,currentTask);
+        outState.putIntArray(RESULTS_KEY,results);
+        outState.putLong(TIME_WHEN_TASK_SHOULD_BE_DONE_KEY,timeWhenItShouldBeDone);
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -197,10 +225,7 @@ public class TaskTimer extends AppCompatActivity {
             }
             if (mediaPlayer != null) {
                 mediaPlayer.stop();
-                mediaPlayer.release();
-                mediaPlayer = null;
             }
-
         }
         super.onStop();
     }
@@ -209,6 +234,12 @@ public class TaskTimer extends AppCompatActivity {
     protected void onDestroy() {
         if (taskCountdown != null) {
             taskCountdown.cancel();
+            taskCountdown = null;
+        }
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.release();
+            mediaPlayer = null;
         }
         super.onDestroy();
     }
