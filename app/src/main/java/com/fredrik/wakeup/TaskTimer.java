@@ -5,8 +5,10 @@ import android.content.res.AssetFileDescriptor;
 import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.CountDownTimer;
 import android.provider.Settings;
+import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -15,6 +17,8 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import java.io.IOException;
+import java.util.Locale;
+import java.util.UUID;
 
 public class TaskTimer extends AppCompatActivity {
 
@@ -34,18 +38,21 @@ public class TaskTimer extends AppCompatActivity {
     private int[] results;
 
     private boolean focusDuringOnPause;
+    private boolean textToSpeechOnline = false;
 
     private static final long timerRunningTime = Long.MAX_VALUE;
     private CountDownTimer taskCountdown = new CountDownTimer(timerRunningTime, 1000) {
         @Override
         public void onTick(long millisUntilFinished) {
-            updateTimeLeft();
+            final int secondsLeft = getTimeLeftInSec();
+            handleTick(secondsLeft);
         }
 
         @Override
         public void onFinish() {
         }
     };
+    private TextToSpeech tts;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +85,14 @@ public class TaskTimer extends AppCompatActivity {
                 buttonPressed();
             }
         });
+
+        tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                textToSpeechOnline = status == TextToSpeech.SUCCESS;
+            }
+        });
+        tts.setLanguage(Locale.US);
 
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setLooping(true);
@@ -154,8 +169,7 @@ public class TaskTimer extends AppCompatActivity {
 
     }
 
-    private void updateTimeLeft(){
-        final int secondsLeft = getTimeLeftInSec();
+    private void handleTick(int secondsLeft){
         boolean positive = secondsLeft >= 0;
         int secondsLeftAbs = Math.abs(secondsLeft);
 
@@ -175,6 +189,25 @@ public class TaskTimer extends AppCompatActivity {
         }
 
         countDownMarker.setText(textToShow);
+
+        if(secondsLeft % 60 == 0 && textToSpeechOnline && (!mediaPlayer.isPlaying())){
+            String toSay;
+            if(minutesLeft == 0){
+                toSay = "Time is up";
+            }
+            else if(positive) {
+                toSay = minutesLeftStr + " minutes remaining";
+            }
+            else{
+                toSay = "Behind " + minutesLeftStr + " minutes";
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                tts.speak(toSay,TextToSpeech.QUEUE_FLUSH,null, UUID.randomUUID().toString());
+            }
+            else{
+                tts.speak(toSay,TextToSpeech.QUEUE_FLUSH,null);
+            }
+        }
     }
 
     private void setupCountdownForCurrentTask(){
