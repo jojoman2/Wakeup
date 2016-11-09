@@ -1,4 +1,4 @@
-package com.fredrik.wakeup;
+package com.fredrik.wakeup.activities;
 
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
@@ -6,15 +6,20 @@ import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
+import com.fredrik.wakeup.broadcastreceivers.AlarmBroadcastReceiver;
+import com.fredrik.wakeup.other.Database;
+import com.fredrik.wakeup.other.MorningTask;
+import com.fredrik.wakeup.R;
+import com.fredrik.wakeup.other.TaskFormatTransform;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -25,8 +30,10 @@ public class TaskTimer extends AppCompatActivity {
     private static final String CURRENT_TASK_KEY = "currentTask";
     private static final String TIME_WHEN_TASK_SHOULD_BE_DONE_KEY = "timeDone";
     private static final String RESULTS_KEY = "results";
+    private static final String TASKS_JSON_KEY = "tasksJson";
 
     private MediaPlayer mediaPlayer;
+    private TextToSpeech tts;
     private TextView taskTitle;
     private TextView countDownMarker;
 
@@ -52,7 +59,7 @@ public class TaskTimer extends AppCompatActivity {
         public void onFinish() {
         }
     };
-    private TextToSpeech tts;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,9 +67,16 @@ public class TaskTimer extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_task_timer);
 
-        morningTasks = DefaultTasks.getDefaultTasks();
+
 
         if(savedInstanceState == null){
+            Database database = new Database(this);
+            final long intendedMilitime = getIntent().getExtras().getLong(AlarmBroadcastReceiver.INTENT_EXTRA_ALARM_TIME);
+
+            morningTasks = database.getTasksFromTimestamp(intendedMilitime);
+            database.removeSpecificAlarm(intendedMilitime);
+            database.close();
+
             currentTask = 0;
             timeWhenItShouldBeDone = -1;
             results = new int[morningTasks.length];
@@ -71,7 +85,7 @@ public class TaskTimer extends AppCompatActivity {
             currentTask = savedInstanceState.getInt(CURRENT_TASK_KEY);
             timeWhenItShouldBeDone = savedInstanceState.getLong(TIME_WHEN_TASK_SHOULD_BE_DONE_KEY);
             results = savedInstanceState.getIntArray(RESULTS_KEY);
-
+            morningTasks = TaskFormatTransform.fromJson(savedInstanceState.getString(TASKS_JSON_KEY));
         }
 
         Button bottomButton = (Button) findViewById(R.id.bottomButton);
@@ -153,10 +167,7 @@ public class TaskTimer extends AppCompatActivity {
             setupCountdownForCurrentTask();
         }
 
-        if (AlarmBroadcastReceiver.wakeLock != null) {
-            AlarmBroadcastReceiver.wakeLock.release();
-            AlarmBroadcastReceiver.wakeLock = null;
-        }
+        AlarmBroadcastReceiver.releaseAnyWakelock();
     }
 
     private static String numberToString(int number){
@@ -195,12 +206,15 @@ public class TaskTimer extends AppCompatActivity {
             if(minutesLeft == 0){
                 toSay = "Time is up";
             }
-            else if(positive) {
-                toSay = minutesLeftStr + " minutes remaining";
-            }
-            else{
-                toSay = "Behind " + minutesLeftStr + " minutes";
-            }
+            else {
+                String units = minutesLeft == 1 ? "minute" : "minutes";
+                if (positive) {
+                        toSay = Integer.toString(minutesLeft) + " " + units +" remaining";
+                    }
+                    else {
+                        toSay = "Behind " + Integer.toString(minutesLeft) + " " + units;
+                    }
+                }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 tts.speak(toSay,TextToSpeech.QUEUE_FLUSH,null, UUID.randomUUID().toString());
             }
@@ -214,7 +228,7 @@ public class TaskTimer extends AppCompatActivity {
         final MorningTask thisMorningTask = morningTasks[currentTask];
 
 
-        final boolean soundAlarm = thisMorningTask.useSoundAlarm();
+        final boolean soundAlarm = currentTask == 0;
         if(mediaPlayer != null) {
             if (soundAlarm && (!mediaPlayer.isPlaying())) {
                 startMediaPlayer();
@@ -246,16 +260,16 @@ public class TaskTimer extends AppCompatActivity {
         outState.putInt(CURRENT_TASK_KEY,currentTask);
         outState.putIntArray(RESULTS_KEY,results);
         outState.putLong(TIME_WHEN_TASK_SHOULD_BE_DONE_KEY,timeWhenItShouldBeDone);
+        outState.putString(TASKS_JSON_KEY, TaskFormatTransform.toJson(morningTasks));
         super.onSaveInstanceState(outState);
     }
+
+
 
     @Override
     protected void onStop() {
         if(focusDuringOnPause) {
-            if (AlarmBroadcastReceiver.wakeLock != null) {
-                AlarmBroadcastReceiver.wakeLock.release();
-                AlarmBroadcastReceiver.wakeLock = null;
-            }
+            AlarmBroadcastReceiver.releaseAnyWakelock();
             if (mediaPlayer != null) {
                 mediaPlayer.stop();
             }
@@ -271,8 +285,13 @@ public class TaskTimer extends AppCompatActivity {
         }
         if (mediaPlayer != null) {
             mediaPlayer.stop();
+            mediaPlayer.reset();
             mediaPlayer.release();
             mediaPlayer = null;
+        }
+        if(tts != null){
+            tts.stop();
+            tts.shutdown();
         }
         super.onDestroy();
     }

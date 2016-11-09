@@ -1,10 +1,9 @@
-package com.fredrik.wakeup;
+package com.fredrik.wakeup.activities;
 
-import android.content.Intent;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
-import org.w3c.dom.Text;
+import com.fredrik.wakeup.R;
 
 import static android.graphics.Color.GREEN;
 import static android.graphics.Color.RED;

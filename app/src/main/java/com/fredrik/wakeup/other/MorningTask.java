@@ -1,15 +1,23 @@
-package com.fredrik.wakeup;
+package com.fredrik.wakeup.other;
 
 public class MorningTask {
 
+
+
     private String name;
     private int secondsToDoIt;
-    private boolean useSoundAlarm;
 
-    public MorningTask(String name, int secondsToDoIt, boolean useSoundAlarm) {
+    public MorningTask(String name, int secondsToDoIt) {
         this.name = name;
         this.secondsToDoIt = secondsToDoIt;
-        this.useSoundAlarm = useSoundAlarm;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setSecondsToDoIt(int secondsToDoIt) {
+        this.secondsToDoIt = secondsToDoIt;
     }
 
     public String getName() {
@@ -19,6 +27,4 @@ public class MorningTask {
     public int getSecondsToDoIt() {
         return secondsToDoIt;
     }
-
-    public boolean useSoundAlarm(){return useSoundAlarm;}
 }
