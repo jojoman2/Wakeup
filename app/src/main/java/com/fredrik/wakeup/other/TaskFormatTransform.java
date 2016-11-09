@@ -100,8 +100,12 @@ public class TaskFormatTransform {
 
     public static String toTextFieldText(MorningTask[] tasks){
         String textFieldText = "";
-        for(MorningTask task : tasks){
-            textFieldText += task.getName() + ": " + task.getSecondsToDoIt() + "\n";
+        for(int i = 0; i < tasks.length; i++){
+            MorningTask task = tasks[i];
+            textFieldText += task.getName() + ": " + task.getSecondsToDoIt();
+            if(i < tasks.length - 1){
+                textFieldText += "\n";
+            }
         }
         return textFieldText;
     }

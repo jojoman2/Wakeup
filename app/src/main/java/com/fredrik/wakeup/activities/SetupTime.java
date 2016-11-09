@@ -51,10 +51,10 @@ public class SetupTime extends AppCompatActivity {
 
         String lastTasksJson = sharedPref.getString(LAST_TASKS_JSON_PREF, null);
         MorningTask[] currentTasks;
-        if(lastTasksJson != null){
+        if (lastTasksJson != null) {
             currentTasks = TaskFormatTransform.fromJson(lastTasksJson);
         }
-        else{
+        else {
             currentTasks = DefaultTasks.getDefaultTasks();
         }
 
@@ -101,7 +101,7 @@ public class SetupTime extends AppCompatActivity {
                     return;
                 }
 
-                SharedPreferences.Editor editor =  sharedPref.edit();
+                SharedPreferences.Editor editor = sharedPref.edit();
                 editor.putString(LAST_TASKS_JSON_PREF, TaskFormatTransform.toJson(resultingTasks));
                 editor.apply();
 
@@ -136,11 +136,11 @@ public class SetupTime extends AppCompatActivity {
         alertDialog.setTitle(title);
         alertDialog.setMessage(message);
         alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                });
+            new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
         alertDialog.show();
     }
 
